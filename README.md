@@ -38,7 +38,7 @@ Detailed results and plots will be included in the final report.
 ---
 
 ## 👥 Team
-- **Haike Yu** –
+- **Haike Yu**
 - **Mun Sun Bin** 
 - **Edbert Wang**
 - **Chengyuan Yao**
