@@ -1,7 +1,6 @@
 import csv
 import re
-
-### TODO: This framework makes a lot of ungrounded assumptions about the format of the CSVs. These WILL NEED to be reviewed once database access is obtained.
+import random
 
 
 def clean_text(text: str) -> str:
@@ -13,20 +12,15 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 def read_csv_sentences(path: str):
-    """Read a CSV containing sentences separated by commas."""
+    """Read a TSV, returning only Participant dialogue."""
+    sentences = []
     with open(path, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        sentences = []
+        reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            for cell in row:
-                clean_cell = clean_text(cell)
-                if clean_cell:
-                    sentences.append(clean_cell)
-        return sentences
-
-
-def strip_interview_questions(sentences):
-    # TODO: Need to see the actual format of the csvs before this can be implemented
+            if row.get("speaker", "").strip().lower() == "participant":
+                value = row.get("value", "").strip()
+                if value:
+                    sentences.append(clean_text(value))
     return sentences
 
 
@@ -41,11 +35,13 @@ def word_level(sentences, N):
     '''
     words = list()
     for s in sentences:
-        words.append(s.split())
+        for w in s.split():
+            words.append(w)
 
     if N > len(words):
         N = len(words)
     sampled = random.sample(words, N)
+
     return " ".join(sampled)
 
 
@@ -83,5 +79,8 @@ def dialogue_level(sentences, N):
     return " ".join(selected)
 
 if __name__ == "__main__":
-    input_file = "input.csv"
-    clean_csv(input_file)
+    input_file = "../data/raw/transcripts/300_TRANSCRIPT.csv"
+    sentences = read_csv_sentences(input_file)
+    print(word_level(sentences, 512))
+    print(sentence_level(sentences, 512))
+    print(dialogue_level(sentences, 512))
