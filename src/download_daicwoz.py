@@ -13,6 +13,10 @@ import requests
 from tqdm import tqdm
 import zipfile
 import shutil
+    
+import pandas as pd
+import re
+from pathlib import Path
 
 
 def extract_daicwoz_transcripts(
@@ -124,9 +128,10 @@ def extract_daicwoz_transcripts(
     print(f"\nAll transcripts ensured in {out_dir}.")
 
 def download_phq_file(
-    filename: str = "full_test_split.csv",
-    output_dir: str = "data/raw",
-    base_url: str = "https://dcapswoz.ict.usc.edu/wwwdaicwoz"
+    filename: str = "Detailed_PHQ8_Labels.csv",
+    rename_to: str = "phq_scores.csv",
+    output_dir: str = "data/raw/phq",
+    base_url: str = "https://dcapswoz.ict.usc.edu/wwwedaic/labels/"
 ):
     """
     Downloads the metadata CSV file (e.g., full_test_split.csv) from the DAIC-WOZ dataset website.
@@ -142,15 +147,17 @@ def download_phq_file(
     """
 
     os.makedirs(output_dir, exist_ok=True)
+
     url = f"{base_url}/{filename}"
-    output_path = os.path.join(output_dir, filename)
+    raw_output_path = os.path.join(output_dir, filename)
+    final_output_path = os.path.join(output_dir, rename_to)
 
-    # Skip existing file
-    if os.path.exists(output_path):
-        print(f"File already exists: {output_path}")
-        return output_path
+    # If renamed file already exists: skip
+    if os.path.exists(final_output_path):
+        print(f"File already exists: {final_output_path}")
+        return final_output_path
 
-    print(f"Downloading {filename} from {url}")
+    print(f"Downloading {filename} from {url} ...")
     try:
         with requests.get(url, stream=True, timeout=60) as r:
             if r.status_code == 404:
@@ -159,7 +166,7 @@ def download_phq_file(
             r.raise_for_status()
 
             total = int(r.headers.get("content-length", 0))
-            with open(output_path, "wb") as f, tqdm(
+            with open(raw_output_path, "wb") as f, tqdm(
                 total=total, unit="B", unit_scale=True, desc=filename
             ) as bar:
                 for chunk in r.iter_content(chunk_size=8192):
@@ -168,8 +175,14 @@ def download_phq_file(
                         bar.update(len(chunk))
 
         print(f"Downloaded: {filename}")
-        return output_path
+
+        # --- rename to clean name ---
+        os.rename(raw_output_path, final_output_path)
+        print(f"Renamed to: {final_output_path}")
+
+        return final_output_path
 
     except Exception as e:
         print(f"Failed to download {filename}: {e}")
         return None
+ 
