@@ -3,7 +3,7 @@ from pathlib import Path
 from collections import Counter
 from torch.utils.data import Dataset
 import torch
-
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 # -----------------------------
 # Build vocabulary
@@ -77,3 +77,65 @@ class DeepPHQDataset(Dataset):
             "label": torch.tensor(score, dtype=torch.float32),
             "pid": torch.tensor(pid, dtype=torch.long)
         }
+    
+def create_balanced_dataloader(dataset, batch_size=32):
+    """
+    dataset: DeepPHQDataset
+        - dataset[i]["label"] must exist and be PHQ score
+    """
+
+    # Step 1: count frequencies
+    labels = [float(dataset[i]["label"]) for i in range(len(dataset))]
+    
+    # Convert to classes if needed (e.g. regression → buckets)
+    # But here we treat each integer PHQ score as a class
+    class_counts = {}
+    for lab in labels:
+        class_counts[lab] = class_counts.get(lab, 0) + 1
+
+    # Step 2: compute weights (inverse freq)
+    weights = [1.0 / class_counts[lab] for lab in labels]
+
+    # Step 3: create sampler
+    sampler = WeightedRandomSampler(
+        weights=weights,
+        num_samples=len(weights),  # same number of samples per epoch
+        replacement=True
+    )
+
+    # Step 4: return DataLoader
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        sampler=sampler
+    )
+
+import random
+
+def split_by_pid(df, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15, seed=42):
+    assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6, "Ratios must sum to 1"
+
+    # 1. collect unique PIDs
+    pids = list(df["PID"].unique())
+
+    # 2. set seed for reproducibility
+    random.seed(seed)
+
+    # 3. shuffle
+    random.shuffle(pids)
+
+    # 4. assign splits
+    total = len(pids)
+    train_end = int(total * train_ratio)
+    val_end = train_end + int(total * val_ratio)
+
+    train_pids = pids[:train_end]
+    val_pids   = pids[train_end:val_end]
+    test_pids  = pids[val_end:]
+
+    # 5. select rows
+    train_df = df[df["PID"].isin(train_pids)]
+    val_df   = df[df["PID"].isin(val_pids)]
+    test_df  = df[df["PID"].isin(test_pids)]
+
+    return train_df, val_df, test_df
