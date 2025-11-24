@@ -38,22 +38,35 @@ def deterministic_init(net: nn.Module):
         else:
             nn.init.zeros_(p.data)
 
-def train(model, criterion, optimizer, train_loader, val_loader, epochs=20, lr=0.001, device='cpu'):
-    """    
+def train(model, criterion, optimizer, train_loader, val_loader, 
+          epochs=20, lr=0.001, device='cpu'):
+    """
+    Train CNN regression model.
+    
     Args:
         model: PyTorch model
+        criterion: Loss function (e.g., nn.MSELoss())
+        optimizer: Optimizer (e.g., torch.optim.Adam)
         train_loader: Training DataLoader
         val_loader: Validation DataLoader
-        epochs: Number of epochs (default: 20 as in paper)
-        lr: Learning rate
-        device: 'cuda' or 'cpu'
+        epochs: Number of epochs
+        lr: Learning rate (used for logging, optimizer already has it)
+        device: Device to train on
     
     Returns:
-        Training history
+        history: Dictionary with training metrics
     """
+    import os
+    
     model = model.to(device)
     
-    history = {'train_loss': [], 'val_loss': [], 'train_mae': [], 'val_mae': []}
+    history = {
+        'train_loss': [], 
+        'val_loss': [], 
+        'train_mae': [], 
+        'val_mae': []
+    }
+    
     best_val_loss = float('inf')
     patience = 3
     patience_counter = 0
@@ -65,11 +78,21 @@ def train(model, criterion, optimizer, train_loader, val_loader, epochs=20, lr=0
         train_mae = 0.0
         
         for texts, scores in train_loader:
-            texts, scores = texts.to(device), scores.to(device).view(-1, 1)
+            texts = texts.to(device)
+            scores = scores.to(device)
+            
+            # CRITICAL FIX: Reshape scores to match model output shape
+            if scores.dim() == 1:
+                scores = scores.view(-1, 1)
             
             # Forward pass
             optimizer.zero_grad()
             outputs = model(texts)
+            
+            # Ensure outputs are also 2D
+            if outputs.dim() == 1:
+                outputs = outputs.view(-1, 1)
+            
             loss = criterion(outputs, scores)
             
             # Backward pass
@@ -87,8 +110,19 @@ def train(model, criterion, optimizer, train_loader, val_loader, epochs=20, lr=0
         
         with torch.no_grad():
             for texts, scores in val_loader:
-                texts, scores = texts.to(device), scores.to(device).view(-1, 1)
+                texts = texts.to(device)
+                scores = scores.to(device)
+                
+                # CRITICAL FIX: Reshape scores
+                if scores.dim() == 1:
+                    scores = scores.view(-1, 1)
+                
                 outputs = model(texts)
+                
+                # Ensure outputs are also 2D
+                if outputs.dim() == 1:
+                    outputs = outputs.view(-1, 1)
+                
                 loss = criterion(outputs, scores)
                 
                 val_loss += loss.item()
@@ -106,32 +140,28 @@ def train(model, criterion, optimizer, train_loader, val_loader, epochs=20, lr=0
         history['val_mae'].append(epoch_val_mae)
         
         print(f"Epoch {epoch+1}/{epochs}")
-        print(f"Train Loss (MSE): {epoch_train_loss:.4f}, Train MAE: {epoch_train_mae:.4f}")
-        print(f"Val Loss (MSE): {epoch_val_loss:.4f}, Val MAE: {epoch_val_mae:.4f}")
+        print(f"  Train Loss: {epoch_train_loss:.4f}, Train MAE: {epoch_train_mae:.4f}")
+        print(f"  Val Loss: {epoch_val_loss:.4f}, Val MAE: {epoch_val_mae:.4f}")
         print("-" * 50)
         
         # Early stopping
         if epoch_val_loss < best_val_loss:
             best_val_loss = epoch_val_loss
             patience_counter = 0
-            # Save best model
             torch.save(model.state_dict(), 'best_model.pth')
         else:
-            translation = model(source)
-        translation = translation.reshape(-1, translation.shape[-1])
-        target = target.reshape(-1)
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"Early stopping triggered after {epoch+1} epochs")
+                break
+    
+    # Load best model
+    if os.path.exists('best_model.pth'):
+        model.load_state_dict(torch.load('best_model.pth'))
+        print("Loaded best model weights")
+    
+    return history
 
-        optimizer.zero_grad()
-        loss = criterion(translation, target)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-        optimizer.step()
-
-        total_loss += loss.item()
-        progress_bar.set_description_str(
-            "Batch: %d, Loss: %.4f" % ((batch_idx + 1), loss.item()))
-
-    return total_loss, total_loss / len(dataloader)
 
 
 def evaluate(model, test_loader, device='cpu'):
@@ -142,7 +172,10 @@ def evaluate(model, test_loader, device='cpu'):
     
     model = model.to(device)
     model.eval()
-    total_loss = 0.
+    
+    all_predictions = []
+    all_scores = []
+    
     with torch.no_grad():
         for texts, scores in test_loader:
             texts = texts.to(device)
@@ -188,7 +221,6 @@ def evaluate(model, test_loader, device='cpu'):
     }
     
     return results
-
 
 def plot_curves(train_perplexity_history, valid_perplexity_history, filename):
     '''
