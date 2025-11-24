@@ -38,22 +38,84 @@ def deterministic_init(net: nn.Module):
         else:
             nn.init.zeros_(p.data)
 
-def train(model, dataloader, optimizer, criterion, scheduler=None, device='cpu'):
-    model.train()
-
-    # Record total loss
-    total_loss = 0.
-
-    # Get the progress bar for later modification
-    progress_bar = tqdm(dataloader, ascii=True)
-
-    # Mini-batch training
-    for batch_idx, data in enumerate(progress_bar):
-        source = data[0].transpose(1, 0).to(device)
-        target = data[1].transpose(1, 0).to(device)
-
-        if model.__class__.__name__ == 'FullTransformerTranslator':
-            translation = model(source, target)
+def train(model, criterion, optimizer, train_loader, val_loader, epochs=20, lr=0.001, device='cpu'):
+    """    
+    Args:
+        model: PyTorch model
+        train_loader: Training DataLoader
+        val_loader: Validation DataLoader
+        epochs: Number of epochs (default: 20 as in paper)
+        lr: Learning rate
+        device: 'cuda' or 'cpu'
+    
+    Returns:
+        Training history
+    """
+    model = model.to(device)
+    
+    history = {'train_loss': [], 'val_loss': [], 'train_mae': [], 'val_mae': []}
+    best_val_loss = float('inf')
+    patience = 3
+    patience_counter = 0
+    
+    for epoch in range(epochs):
+        # Training phase
+        model.train()
+        train_loss = 0.0
+        train_mae = 0.0
+        
+        for texts, scores in train_loader:
+            texts, scores = texts.to(device), scores.to(device).view(-1, 1)
+            
+            # Forward pass
+            optimizer.zero_grad()
+            outputs = model(texts)
+            loss = criterion(outputs, scores)
+            
+            # Backward pass
+            loss.backward()
+            optimizer.step()
+            
+            # Statistics
+            train_loss += loss.item()
+            train_mae += torch.abs(outputs - scores).mean().item()
+        
+        # Validation phase
+        model.eval()
+        val_loss = 0.0
+        val_mae = 0.0
+        
+        with torch.no_grad():
+            for texts, scores in val_loader:
+                texts, scores = texts.to(device), scores.to(device).view(-1, 1)
+                outputs = model(texts)
+                loss = criterion(outputs, scores)
+                
+                val_loss += loss.item()
+                val_mae += torch.abs(outputs - scores).mean().item()
+        
+        # Calculate epoch metrics
+        epoch_train_loss = train_loss / len(train_loader)
+        epoch_train_mae = train_mae / len(train_loader)
+        epoch_val_loss = val_loss / len(val_loader)
+        epoch_val_mae = val_mae / len(val_loader)
+        
+        history['train_loss'].append(epoch_train_loss)
+        history['train_mae'].append(epoch_train_mae)
+        history['val_loss'].append(epoch_val_loss)
+        history['val_mae'].append(epoch_val_mae)
+        
+        print(f"Epoch {epoch+1}/{epochs}")
+        print(f"Train Loss (MSE): {epoch_train_loss:.4f}, Train MAE: {epoch_train_mae:.4f}")
+        print(f"Val Loss (MSE): {epoch_val_loss:.4f}, Val MAE: {epoch_val_mae:.4f}")
+        print("-" * 50)
+        
+        # Early stopping
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
+            patience_counter = 0
+            # Save best model
+            torch.save(model.state_dict(), 'best_model.pth')
         else:
             translation = model(source)
         translation = translation.reshape(-1, translation.shape[-1])
@@ -72,31 +134,60 @@ def train(model, dataloader, optimizer, criterion, scheduler=None, device='cpu')
     return total_loss, total_loss / len(dataloader)
 
 
-def evaluate(model, dataloader, criterion, device='cpu'):
-    # Set the model to eval mode to avoid weights update
+def evaluate(model, test_loader, device='cpu'):
+    """
+    Evaluate regression model performance with proper shape handling.
+    """
+    from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+    
+    model = model.to(device)
     model.eval()
     total_loss = 0.
     with torch.no_grad():
-        # Get the progress bar
-        progress_bar = tqdm(dataloader, ascii=True)
-        for batch_idx, data in enumerate(progress_bar):
-            source = data[0].transpose(1, 0).to(device)
-            target = data[1].transpose(1, 0).to(device)
-
-            if model.__class__.__name__ == 'FullTransformerTranslator':
-                translation = model(source, target)
-            else:
-                translation = model(source)
-            translation = translation.reshape(-1, translation.shape[-1])
-            target = target.reshape(-1)
-
-            loss = criterion(translation, target)
-            total_loss += loss.item()
-            progress_bar.set_description_str(
-                "Batch: %d, Loss: %.4f" % ((batch_idx + 1), loss.item()))
-
-    avg_loss = total_loss / len(dataloader)
-    return total_loss, avg_loss
+        for texts, scores in test_loader:
+            texts = texts.to(device)
+            outputs = model(texts)  # Shape: (batch_size, 1) or (batch_size,)
+            
+            # Flatten to 1D arrays
+            if outputs.dim() > 1:
+                outputs = outputs.squeeze()  # Remove extra dimensions
+            if scores.dim() > 1:
+                scores = scores.squeeze()
+            
+            all_predictions.extend(outputs.cpu().numpy().flatten())
+            all_scores.extend(scores.cpu().numpy().flatten())
+    
+    # Convert to 1D numpy arrays
+    all_predictions = np.array(all_predictions).flatten()
+    all_scores = np.array(all_scores).flatten()
+    
+    # Verify shapes match
+    print(f"Predictions shape: {all_predictions.shape}")
+    print(f"Scores shape: {all_scores.shape}")
+    
+    if all_predictions.shape != all_scores.shape:
+        raise ValueError(f"Shape mismatch: predictions {all_predictions.shape} vs scores {all_scores.shape}")
+    
+    # Calculate regression metrics
+    mse = mean_squared_error(all_scores, all_predictions)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(all_scores, all_predictions)
+    r2 = r2_score(all_scores, all_predictions)
+    
+    # Calculate correlation (now both are 1D arrays)
+    correlation = np.corrcoef(all_scores, all_predictions)[0, 1]
+    
+    results = {
+        'mse': mse,
+        'rmse': rmse,
+        'mae': mae,
+        'r2': r2,
+        'correlation': correlation,
+        'predictions': all_predictions,
+        'actual': all_scores
+    }
+    
+    return results
 
 
 def plot_curves(train_perplexity_history, valid_perplexity_history, filename):
