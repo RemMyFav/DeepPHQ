@@ -19,13 +19,13 @@ class HierarchicalAttention(nn.Module):
     def __init__(self, hidden_dim):
         super().__init__()
         self.attn_linear = nn.Linear(hidden_dim, hidden_dim, bias=True)
-        self.context_vec = nn.Linear(hidden_dim, 1, bias=False)
-
+        # self.context_vec = nn.Linear(hidden_dim, 1, bias=False)
+        self.context_vec = nn.Parameter(torch.randn(hidden_dim))
     def forward(self, x, mask=None):
         # x: (batch, time, hidden)
         u = torch.tanh(self.attn_linear(x))          
-        scores = self.context_vec(u).squeeze(-1)     
-
+        # scores = self.context_vec(u).squeeze(-1)   
+        scores = torch.matmul(x, self.context_vec)  
         if mask is not None:
             scores = scores.masked_fill(mask == 0, -1e9)
 
@@ -45,13 +45,14 @@ class WEncoder(nn.Module):
 
         super().__init__()
         self.word_embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=pad_idx)
-        self.gru = nn.GRU(embed_dim, hidden_dim, batch_first=True, bidirectional=True)
+        self.embedding_dropout = nn.Dropout(0.3)
+        # self.gru_layer = nn.GRU(embed_dim, hidden_dim, batch_first=True, bidirectional=True, dropout=0.3)
+        self.gru_layer = self.gru_layer = nn.GRU(embed_dim, hidden_dim, batch_first=True, bidirectional=True, num_layers=2, dropout=0.3)
         self.attention = HierarchicalAttention(hidden_dim * 2)
 
-
     def forward(self, x):
-        word_embed = self.word_embedding(x)
-        hierarchy, hidden_val = self.gru(word_embed)
+        word_embed = self.embedding_dropout(self.word_embedding(x))
+        hierarchy, hidden_val = self.gru_layer(word_embed)
         return self.attention(hierarchy)
 
 # C. Sentence encoder + sentence embedding
@@ -61,11 +62,12 @@ class SEncoder(nn.Module):
             hidden_dim
     ):
         super().__init__()
-        self.gru = nn.GRU(hidden_dim*2, hidden_dim, batch_first=True, bidirectional=True)
+        # self.gru_layer = nn.GRU(hidden_dim*2, hidden_dim, batch_first=True, bidirectional=True, dropout=0.3)
+        self.gru_layer = self.gru_layer = nn.GRU(hidden_dim*2, hidden_dim, batch_first=True, bidirectional=True, num_layers=2, dropout=0.3)
         self.attention = HierarchicalAttention(hidden_dim * 2)
     
     def forward(self,x):
-        hierarchy, _ = self.gru(x)
+        hierarchy, _ = self.gru_layer(x)
         return self.attention(hierarchy)
 
 class AttentionRNN(nn.Module):
@@ -91,6 +93,8 @@ class AttentionRNN(nn.Module):
         self.sentence_encoder =  SEncoder(hidden_dim)
         # Final document vector → classifier
         self.classifier = nn.Linear(hidden_dim*2, num_classes)
+        # Optional - dropout to increase performance
+        self.dropout = nn.Dropout(0.5)
     
     def forward(self, x):
         B, S, W = x.shape
@@ -100,5 +104,6 @@ class AttentionRNN(nn.Module):
         word_enc = word_enc.view(B, S, -1)
 
         sentence_enc = self.sentence_encoder(word_enc)
+        out = self.dropout(sentence_enc)
         out = self.classifier(sentence_enc)
-        return out.squeeze(1)
+        return out # out.squeeze(1)

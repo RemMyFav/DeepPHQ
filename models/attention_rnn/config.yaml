@@ -31,10 +31,10 @@ model:
 
 training:
     device: "cuda" # "cuda" or "cpu"
-    num_epochs: 10
-    learning_rate: 3e-4
+    num_epochs: 16
+    learning_rate: 1e-5
     weight_decay: 1e-5
-    gradient_clip: 1.0
+    gradient_clip: 1.5
 
 checkpoint:
     save_dir: "../../models/checkpoints"
