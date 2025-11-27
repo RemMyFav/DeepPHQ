@@ -172,14 +172,14 @@ def match_phq_transcripts(
     meta_csv="data/raw/full_test_split.csv"
 ):
     """
-    Build a mapping: participant_id -> PHQ-8 score.
+    Build a mapping: participant_id -> PHQ score.
     Only returns IDs for which transcripts exist.
     """
 
     # --- Load metadata ---
     meta_df = pd.read_csv(meta_csv)
     meta_df["Participant_ID"] = meta_df["Participant_ID"].astype(int)
-    phq_lookup = dict(zip(meta_df["Participant_ID"], meta_df["PHQ_8Total"]))
+    phq_lookup = dict(zip(meta_df["Participant_ID"], meta_df["PHQ_Score"]))
 
     # --- Find all transcript IDs available ---
     transcript_ids = []
@@ -301,10 +301,3 @@ def save_text_representations(
     df_dialogue = pd.DataFrame(dataset_dialogue, columns=["PID", "Text", "PHQ_Score"])
     df_dialogue.to_csv(os.path.join(output_dir, "dialogue_level.csv"), index=False)
     print(f"Saved dialogue-level dataset → {os.path.join(output_dir, 'dialogue_level.csv')}")
-
-if __name__ == "__main__":
-    input_file = "../data/raw/transcripts/300_TRANSCRIPT.csv"
-    sentences = read_csv_sentences(input_file)
-    print(word_level_aug(sentences, 512))
-    print(sentence_level_aug(sentences, 512))
-    print(dialogue_level_aug(sentences, 512))
