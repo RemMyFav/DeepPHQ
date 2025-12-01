@@ -5,6 +5,8 @@ from torch.utils.data import Dataset
 import torch
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
+import random
+
 import nltk
 nltk.download("punkt")
 # -----------------------------
@@ -158,8 +160,6 @@ def create_balanced_dataloader(dataset, batch_size=32):
         sampler=sampler
     )
 
-import random
-
 def split_by_pid(df, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15, seed=42):
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6, "Ratios must sum to 1"
 
@@ -187,3 +187,50 @@ def split_by_pid(df, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15, seed=42):
     test_df  = df[df["PID"].isin(test_pids)]
 
     return train_df, val_df, test_df
+
+def sliding_windows(words, window_size=512, stride=128):
+    """
+    Split a list of words into overlapping fixed-size windows.
+    """
+    windows = []
+    L = len(words)
+
+    if L <= window_size:
+        # pad to full length
+        padded = words + ["<PAD>"] * (window_size - L)
+        return [padded]
+
+    for start in range(0, L - window_size + 1, stride):
+        win = words[start:start + window_size]
+        windows.append(win)
+
+    return windows
+
+class DeepPHQValDataset(Dataset):
+    """
+    Deterministic evaluation dataset using sliding windows.
+    """
+
+    def __init__(self, df, vocab, max_length=512, stride=128):
+        self.samples = []
+        self.vocab = vocab
+        self.max_length = max_length
+
+        for pid, text, score in df[["PID", "Text", "PHQ_Score"]].values:
+            words = text.lower().split()
+            windows = sliding_windows(words, window_size=max_length, stride=stride)
+
+            for w in windows:
+                token_ids = [vocab.get(tok, vocab["<UNK>"]) for tok in w]
+                self.samples.append((pid, token_ids, float(score)))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        pid, token_ids, score = self.samples[idx]
+        return {
+            "pid": torch.tensor(pid, dtype=torch.long),
+            "input_ids": torch.tensor(token_ids, dtype=torch.long),
+            "label": torch.tensor(score, dtype=torch.float32)
+        }

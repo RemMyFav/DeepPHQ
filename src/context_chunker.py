@@ -179,7 +179,7 @@ def match_phq_transcripts(
     # --- Load metadata ---
     meta_df = pd.read_csv(meta_csv)
     meta_df["Participant_ID"] = meta_df["Participant_ID"].astype(int)
-    phq_lookup = dict(zip(meta_df["Participant_ID"], meta_df["PHQ_Score"]))
+    phq_lookup = dict(zip(meta_df["Participant_ID"], meta_df["PHQ_8Total"]))
 
     # --- Find all transcript IDs available ---
     transcript_ids = []
