@@ -73,9 +73,10 @@ class CNNTextRegressor(nn.Module):
         
         # Dropout then do sigmoid layer and pass
         dropped = self.dropout(concat)
-        output = torch.sigmoid(self.fc(dropped)) # Output: (batch_size, 1)
+        output = self.fc(dropped) # Output: (batch_size, 1)
         
         return output
+
 
 
 
