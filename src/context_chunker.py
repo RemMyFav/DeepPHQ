@@ -205,8 +205,107 @@ def match_phq_transcripts(
         print(f"⚠ Missing PHQ score for: {missing}")
 
     return aligned
+def match_all_phq_transcripts(
+    transcript_dir="data/raw/transcripts",
+    meta_csv="data/raw/full_test_split.csv"
+):
+    """
+    Build a mapping: participant_id -> 8 PHQ item scores (array of length 8).
+    Only returns IDs for which transcripts exist.
+    """
+
+    # 1. Load metadata
+    meta_df = pd.read_csv(meta_csv)
+    meta_df["Participant_ID"] = meta_df["Participant_ID"].astype(int)
+
+    # Define 8 item columns
+    item_cols = [
+        "PHQ_8NoInterest",
+        "PHQ_8Depressed",
+        "PHQ_8Sleep",
+        "PHQ_8Tired",
+        "PHQ_8Appetite",
+        "PHQ_8Failure",
+        "PHQ_8Concentrating",
+        "PHQ_8Moving",
+    ]
+
+    # Build lookup: pid → array(8,)
+    phq_lookup = {}
+    for _, row in meta_df.iterrows():
+        pid = int(row["Participant_ID"])
+        item_vec = row[item_cols].values.astype(float)  # float array length 8
+        phq_lookup[pid] = item_vec
+
+    # 2. Find all transcript IDs
+    transcript_ids = []
+    for file in Path(transcript_dir).glob("*.csv"):
+        pid = int(re.search(r"\d+", file.stem).group())
+        transcript_ids.append(pid)
+
+    transcript_ids = sorted(set(transcript_ids))
+
+    # 3. Build aligned mapping
+    aligned = {}
+    missing = []
+
+    for pid in transcript_ids:
+        if pid in phq_lookup:
+            aligned[pid] = phq_lookup[pid]  # (8,) vector
+        else:
+            aligned[pid] = np.array([-1]*8, dtype=float)
+            missing.append(pid)
+
+    print(f"Loaded PHQ mapping for {len(aligned)} participants.")
+    if missing:
+        print(f"⚠ Missing PHQ labels for: {missing}")
+
+    return aligned
 
 def generate_dataset(
+    transcript_dir: str,
+    phq_dict: dict
+):
+    """
+    Load all transcripts under a folder and match them with PHQ scores 
+    from phq_dict {pid: score}.
+
+    Returns:
+        all_transcripts = [
+            (pid, [sentence1, sentence2, ...], phq_score),
+            ...
+        ]
+    """
+
+    all_transcripts = []
+
+    for file in Path(transcript_dir).glob("*.csv"):
+        # --- Extract participant ID from file name ---
+        pid = int(re.search(r"\d+", file.stem).group())
+
+        # --- Skip if this participant not in PHQ dict ---
+        if pid not in phq_dict:
+            print(f"[!] PID {pid} not found in PHQ dict, skipping.")
+            continue
+
+        # --- Read participant-only sentences ---
+        sentences = read_csv_sentences(file)
+
+        if not sentences:
+            print(f"[!] Empty or malformed transcript for {pid}, skipping.")
+            continue
+
+        score = phq_dict[pid]
+
+        all_transcripts.append((pid, sentences, score))
+
+    # Sort for cleanliness
+    all_transcripts.sort(key=lambda x: x[0])
+
+    print(f"Loaded {len(all_transcripts)} transcripts with PHQ scores.")
+    return all_transcripts
+
+def generate_all_phq_dataset(
     transcript_dir: str,
     phq_dict: dict
 ):

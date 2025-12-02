@@ -4,7 +4,7 @@
 
 data:
     level: "dialogue" # options: "word", "sentence", "dialogue"
-    data_root: "../../data/processed"
+    data_root: "../../data/processed/all_score/"
     word_csv: "word_level.csv"
     sentence_csv: "sentence_level.csv"
     dialogue_csv: "dialogue_level.csv"
@@ -24,7 +24,7 @@ model:
     nhead: 4
     num_layers: 2
     dropout: 0.1
-    output_size: 1
+    output_size: 8
 
 training:
     device: "cuda" # "cuda" or "cpu"
