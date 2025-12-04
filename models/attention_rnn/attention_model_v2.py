@@ -83,7 +83,8 @@ class AttentionHanV2(nn.Module):
                  num_classes,
                  pad_idx,
                  max_words,
-                 max_sentences):
+                 max_sentences,
+                 dropout):
         super().__init__()
 
         self.pad_idx = pad_idx
@@ -97,7 +98,7 @@ class AttentionHanV2(nn.Module):
         self.sent_encoder = SentenceEncoder(hidden_dim)
 
         self.ln = nn.LayerNorm(hidden_dim * 2)
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(dropout)
 
         self.classifier = nn.Linear(hidden_dim * 2, num_classes)
 
