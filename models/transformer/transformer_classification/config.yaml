@@ -3,12 +3,12 @@
 # ===========================
 
 data:
-    level: "dialogue" # options: "word", "sentence", "dialogue"
-    data_root: "../../data/processed/all_score/"
+    level: "sentence" # options: "word", "sentence", "dialogue"
+    data_root: "../../../data/processed/classification/"
     word_csv: "word_level.csv"
     sentence_csv: "sentence_level.csv"
     dialogue_csv: "dialogue_level.csv"
-    max_length: 256
+    max_length: 512
 
 vocab:
     min_freq: 1
@@ -21,18 +21,19 @@ dataloader:
 
 model:
     hidden_dim: 128
-    nhead: 8
-    num_layers: 2
+    nhead: 4
+    num_layers: 3
     dropout: 0.2
-    output_size: 8
+    num_classes_per_item: 4
+    num_items: 8
 
 training:
     device: "cuda" # "cuda" or "cpu"
     num_epochs: 20
-    learning_rate: 1e-4
-    weight_decay: 1e-5
+    learning_rate: 2e-5
+    weight_decay: 3e-5
     gradient_clip: 1.0
 
 checkpoint:
-    save_dir: "../../models/checkpoints"
+    save_dir: "../../../models/transformer/transformer_classification/checkpoints/"
     filename: "deepphq_transformer.pt"
