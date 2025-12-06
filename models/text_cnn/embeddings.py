@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import pickle
 
+
+
 # ============================================================================
 # METHOD 1: Loading from common embedding formats
 # ============================================================================
@@ -85,12 +87,13 @@ def load_text_embeddings(filepath, encoding='utf-8'):
 # METHOD 2: Create embedding matrix aligned with your vocabulary
 # ============================================================================
 
-def create_embedding_matrix(vocab, embedding_file, embedding_dim=200):
+def create_embedding_matrix(embedding_file, vocab, embedding_dim=200):
     """
     Create embedding matrix aligned with your vocabulary.
     
     Args:
-        vocab: Your Vocabulary object from the preprocessing step
+        training_data: Training data dataframe
+        vocab_size: Number of words to put in the vocab
         embedding_file: Path to embedding file
         embedding_dim: Dimension of embeddings (e.g., 200, 300)
     
@@ -99,6 +102,7 @@ def create_embedding_matrix(vocab, embedding_file, embedding_dim=200):
     """
     # Load the embedding file
     print(f"Loading embeddings from {embedding_file}...")
+
     
     # Try loading as numpy array first
     try:
@@ -132,7 +136,7 @@ def create_embedding_matrix(vocab, embedding_file, embedding_dim=200):
     
     # Fill in embeddings for words in vocabulary
     found = 0
-    for word, idx in vocab.word2idx.items():
+    for word, idx in vocab.items():
         if word in embeddings_dict:
             embedding_matrix[idx] = embeddings_dict[word]
             found += 1
@@ -141,34 +145,4 @@ def create_embedding_matrix(vocab, embedding_file, embedding_dim=200):
     
     return embedding_matrix
 
-
-# ============================================================================
-# METHOD 3: Load pre-aligned embedding matrix (if vocab is saved)
-# ============================================================================
-
-def load_prealigned_embeddings(embedding_path, vocab_path=None):
-    """
-    Load embeddings that are already aligned with a saved vocabulary.
-    
-    Args:
-        embedding_path: Path to embedding matrix file (.npy)
-        vocab_path: Path to vocabulary file (optional)
-    
-    Returns:
-        embedding_matrix
-    """
-    # Load embedding matrix
-    embedding_matrix = np.load(embedding_path)
-    print(f"Loaded embedding matrix: {embedding_matrix.shape}")
-    
-    # Optionally load and verify vocabulary
-    if vocab_path:
-        with open(vocab_path, 'rb') as f:
-            vocab = pickle.load(f)
-        print(f"Loaded vocabulary with {len(vocab)} words")
-        
-        assert embedding_matrix.shape[0] == len(vocab), \
-            f"Embedding matrix size {embedding_matrix.shape[0]} doesn't match vocab size {len(vocab)}"
-    
-    return embedding_matrix
 
