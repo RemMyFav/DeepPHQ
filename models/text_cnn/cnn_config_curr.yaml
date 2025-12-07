@@ -1,9 +1,9 @@
 # ===========================
-#   DeepPHQ LSTM Config
+#   DeepPHQ CNN Config
 # ===========================
 
 data:
-    level: "sentence" # options: "word", "sentence", "dialogue"
+    level: "dialogue" # options: "word", "sentence", "dialogue"
     data_root: "../../data/processed"
     word_csv: "word_level.csv"
     sentence_csv: "sentence_level.csv"
@@ -24,7 +24,7 @@ model:
     embeddings_file: "glove_wiki50/wiki_giga_2024_50_MFT20_vectors_seed_123_alpha_0.75_eta_0.075_combined.txt"
     embeddings_dim: 100
     num_filters: 64
-    kernel_sizes: [3, 5, 10]
+    kernel_sizes: [3,4,5, 10]
     dropout: 0.1
 
 training:
