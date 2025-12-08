@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 class DeepPHQLSTM(nn.Module):
-    def __init__(self, input_size, output_size, hidden_dim, nhead, num_layers, dropout=0.1):
+    def __init__(self, input_size, output_size, hidden_dim, num_layers, dropout=0.1):
         super().__init__()
         self.embedding = nn.Embedding(input_size, hidden_dim)
 

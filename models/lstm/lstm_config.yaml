@@ -3,7 +3,7 @@
 # ===========================
 
 data:
-    level: "word" # options: "word", "sentence", "dialogue"
+    level: "dialogue" # options: "word", "sentence", "dialogue"
     data_root: "../../data/processed"
     word_csv: "word_level.csv"
     sentence_csv: "sentence_level.csv"
@@ -20,15 +20,45 @@ dataloader:
     num_workers: 2
 
 model:
+  hidden_dim: 128
+  num_layers: 2
+  
+training:
+  num_epochs: 5
+  learning_rate: 3e-4
+
+checkpoint:
+    save_dir: "../../models/checkpoints"
+    filename: "deepphq_lstm.pt"
+# ===========================
+#   DeepPHQ LSTM Config
+# ===========================
+
+data:
+    level: "sentence"  # options: "word", "sentence", "dialogue"
+    data_root: "../../data/processed"
+    word_csv: "word_level.csv"
+    sentence_csv: "sentence_level.csv"
+    dialogue_csv: "dialogue_level.csv"
+    max_length: 512  
+
+vocab:
+    min_freq: 1
+    pad_token: "<PAD>"
+    unk_token: "<UNK>"
+
+dataloader:
+    batch_size: 16  
+    num_workers: 2
+
+model:
     hidden_dim: 128
-    nhead: 4
-    num_layers: 2
+    num_layers: 2   
     dropout: 0.1
     output_size: 1
 
 training:
-    device: "cuda" # "cuda" or "cpu"
-    num_epochs: 10
+    num_epochs: 10    
     learning_rate: 3e-4
     weight_decay: 1e-5
     gradient_clip: 1.0
