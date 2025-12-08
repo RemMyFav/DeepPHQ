@@ -21,7 +21,7 @@ class CNNTextRegressor(nn.Module):
     CNN text Regressor following BMC paper architecture.
     
     Model Architecture:
-    - Embedding layer (200 dimensions)
+    - Embedding layer
     - Global Max Pooling
     - Dropout (0.3)
     - Dense output layer with sigmoid activation
@@ -29,8 +29,8 @@ class CNNTextRegressor(nn.Module):
 
     """
     
-    def __init__(self, vocab_size, embedding_dim=200, filter_sizes=[3, 4, 5], num_filters=8, 
-                 kernel_size=8, dropout_rate=0.3, pretrained_embedding = False, embedding_matrix=None, freeze_embeddings=True):
+    def __init__(self, vocab_size, embedding_dim=200, kernel_sizes=[3, 4, 5], num_filters=8, 
+                 dropout_rate=0.3, pretrained_embedding = False, embedding_matrix=None, freeze_embeddings=True):
         super(CNNTextRegressor, self).__init__()
         
         # Create an Embedding layer, if a pretrained embedding layer has been supplied use it
@@ -50,11 +50,11 @@ class CNNTextRegressor(nn.Module):
         # Multiple convolutional layers with different kernel sizes
         self.convs = nn.ModuleList([
             nn.Conv1d(embedding_dim, num_filters, kernel_size=fs)
-            for fs in filter_sizes
+            for fs in kernel_sizes
         ])
         
-        self.dropout = nn.Dropout(dropout_rate)
-        self.fc = nn.Linear(len(filter_sizes) * num_filters, 1)
+        self.dropout = nn.Dropout(dropout_rate) 
+        self.fc = nn.Linear(len(kernel_sizes) * num_filters, 1)
         
     def forward(self, x):# x shape: (batch_size, seq_len)
         
@@ -73,7 +73,7 @@ class CNNTextRegressor(nn.Module):
         
         # Dropout then do sigmoid layer and pass
         dropped = self.dropout(concat)
-        output = torch.sigmoid(self.fc(dropped)) # Output: (batch_size, 1)
+        output = self.fc(dropped) # Output: (batch_size, 1)
         
         return output
 
