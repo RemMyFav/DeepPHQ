@@ -1,0 +1,39 @@
+# ===========================
+#   DeepPHQ Transformer Config
+# ===========================
+
+data:
+    level: "sentence" # options: "word", "sentence", "dialogue"
+    data_root: "../../../data/processed/classification/"
+    word_csv: "word_level.csv"
+    sentence_csv: "sentence_level.csv"
+    dialogue_csv: "dialogue_level.csv"
+    max_length: 512
+
+vocab:
+    min_freq: 1
+    pad_token: "<PAD>"
+    unk_token: "<UNK>"
+
+dataloader:
+    batch_size: 64
+    num_workers: 0
+
+model:
+    hidden_dim: 128
+    nhead: 4
+    num_layers: 3
+    dropout: 0.2
+    num_classes_per_item: 4
+    num_items: 8
+
+training:
+    device: "cuda" # "cuda" or "cpu"
+    num_epochs: 20
+    learning_rate: 2e-5
+    weight_decay: 3e-5
+    gradient_clip: 1.0
+
+checkpoint:
+    save_dir: "../../../models/transformer/transformer_classification/checkpoints/"
+    filename: "deepphq_transformer.pt"

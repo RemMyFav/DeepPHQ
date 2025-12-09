@@ -35,7 +35,8 @@ class DeepPHQTransformer(nn.Module):
             nhead=nhead,
             dim_feedforward=hidden_dim * 4,
             dropout=dropout,
-            batch_first=True  # <<< VERY IMPORTANT so we don't need to permute dims
+            batch_first=True,
+            norm_first=True
         )
         self.transformer_encoder = TransformerEncoder(encoder_layer, num_layers)
 
