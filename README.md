@@ -1,59 +1,111 @@
-# DeepPHQ
+# DeepPHQ  
+**Evaluating Textual Granularity for PHQ-8 Depression Severity Prediction**
 
-**Predicting depression severity (PHQ-8) from clinical interview transcripts using Deep Learning**
-
-This repository contains the code and report materials for the CS 7643 Deep Learning course project at Georgia Tech.
-
----
-
-## 🧠 Overview
-**Goal:**  
-To predict participants’ PHQ-8 depression scores using transcribed text from the [DAIC-WOZ dataset](https://dcapswoz.ict.usc.edu/wwwdaicwoz/).  
-
-**Approach:**  
-We experiment with multiple neural architectures—**LSTM**, **RNN**, and **Transformer**—to explore how linguistic patterns relate to psychological assessments.  
-The task is framed as both regression and classification to evaluate model robustness.
+Predicting depression severity (PHQ-8) from clinical interview transcripts using deep learning, with a focus on how **input granularity and model architecture influence robustness and behavior**.
 
 ---
 
-## 🧩 Methods
-- Preprocessing of interview transcripts (tokenization, cleaning, truncation)
-- Embedding initialization with pretrained GloVe/BERT vectors
-- Model training with dropout + Adam optimizer  
-- Evaluation metrics: MSE, MAE (regression) and Accuracy, F1 (classification)
+## 🧠 Motivation
+
+Automatic depression assessment from language is a promising but fragile area of clinical NLP.  
+While many prior works report performance improvements, it remains unclear **what linguistic structure models actually rely on**.
+
+This project is motivated by a central question:
+
+> **Does increasing textual context (word → sentence → dialogue) meaningfully improve PHQ-8 prediction, or are models largely invariant to input granularity?**
+
+Rather than optimizing a single model for performance, this work emphasizes **controlled experimental comparison** to better understand model behavior in sensitive mental health settings.
+
+---
+
+## 🔍 Research Question
+
+**How does textual granularity affect depression severity prediction across different neural architectures?**
+
+Specifically, this project examines:
+- Word-level, sentence-level, and dialogue-level text representations
+- Architecture-dependent sensitivity to contextual scope
+- Stability and robustness under reduced or fragmented input context
 
 ---
 
 ## 📊 Dataset
-- **DAIC-WOZ** clinical dialogue dataset  
-- Each participant’s transcript paired with a **PHQ-8 score**  
-- Only text modality used (no audio/video)
+
+- **DAIC-WOZ** clinical interview dataset  
+- Semi-structured interviews between participants and a virtual interviewer  
+- Each participant annotated with a **PHQ-8 score (0–24)**  
+- **Text-only modality** (audio and video intentionally excluded)
+
+Only **participant speech** is retained to isolate depressive linguistic signals.
 
 ---
 
-## 🧪 Results & Analysis
-Comparative experiments between LSTM and Transformer models show that contextual embeddings significantly improve PHQ prediction accuracy.  
-Detailed results and plots will be included in the final report.
+## 🧩 Input Construction
+
+Each interview is transformed into **three parallel input representations**:
+
+- **Word-level**: randomly sampled individual tokens  
+- **Sentence-level**: randomly sampled full sentences  
+- **Dialogue-level**: contiguous multi-sentence segments (~512 tokens)
+
+All inputs are length-matched to avoid confounding effects from sequence length.  
+Balanced sampling is applied to mitigate PHQ-8 label imbalance.
 
 ---
 
-## 👥 Team
-- **Haike Yu**
-- **Mun Sun Bin** 
-- **Edbert Wang**
-- **Chengyuan Yao**
-  
+## 🧠 Models Evaluated
+
+Four neural architectures commonly used in clinical NLP are evaluated under identical conditions:
+
+| Model | Purpose |
+|------|--------|
+| **Transformer (CORAL)** | Long-range context modeling with ordinal regression |
+| **TextCNN** | Local lexical and phrase-level pattern extraction |
+| **LSTM** | Sequential baseline sensitive to ordering |
+| **Hierarchical Attention RNN (HAN)** | Explicit word–sentence–dialogue structure |
+
+Each model is tuned on dialogue-level inputs and evaluated unchanged across all granularities.
+
 ---
 
-## ⚙️ Environment
-- Python 3.10  
-- PyTorch 2.x  
-- HuggingFace Transformers  
-- NumPy / Pandas / Matplotlib  
+## 🧪 Training & Evaluation
+
+- Framework: **PyTorch**
+- Optimizer: **AdamW**, gradient clipping
+- Evaluation metric: **Participant-level MSE**
+- PHQ-8 modeled using **CORAL ordinal regression** for the Transformer
+
+---
+
+## 📈 Key Findings
+
+- Performance differences across input granularities are **surprisingly small**
+- Dialogue-level context does not consistently outperform sentence- or word-level inputs
+- Transformers and HAN models remain robust under reduced context
+- LSTMs show greater sensitivity to input granularity
+
+**Main takeaway:**
+
+> Within DAIC-WOZ, textual granularity alone does not fundamentally determine PHQ-8 prediction performance.
+
+---
+
+## 🧠 What This Project Emphasizes
+
+- Controlled experimental design over metric chasing  
+- Architecture-agnostic comparison  
+- Understanding *why* models behave as they do in clinical NLP  
+- Awareness of dataset bias and evaluation limitations  
+
+---
+
+## 🔗 Resources
+
+- **Code**: https://github.com/RemMyFav/DeepPHQ  
+- **Report**: Included in this repository
 
 ---
 
 ## 📜 License
-This project is released under the [MIT License](LICENSE).
 
----
+MIT License
